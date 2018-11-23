@@ -127,7 +127,7 @@ void ice40prog_finish()
   // ...
   while(ice40prog_cdoneCheck() == 0)
   {
-    spi_send8(SPI1, 0x00);
+    ice40prog_spiSend(0x00);
   }
 
   // ...
