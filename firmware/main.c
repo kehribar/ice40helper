@@ -6,8 +6,10 @@
 #include <stdbool.h>
 #include "systick_delay.h"
 #include "xprintf.h"
+#include "bytesutil.h"
 #include "ice40prog.h"
 #include "usb.h"
+#include "spiFlash.h"
 #include "comHandler.h"
 
 // ----------------------------------------------------------------------------
@@ -21,24 +23,13 @@ static void hardware_init();
 // ---------------------------------------------------------------------------
 int main()
 {
-  static uint8_t localBuf[128];
-
   hardware_init();
 
   while(1) 
   {
     usb_poll();
 
-    if(usb_isConnected())
-    {
-      int32_t datalen = usb_rxDataAmount();
-      if(datalen == 128)
-      {
-        gpio_toggle(GPIOB, GPIO3);
-        usb_rxData(localBuf, datalen);
-        comHandler_analyse(localBuf, datalen);
-      }
-    }
+    comHandler_task();
 
     test_task();
   }
@@ -48,11 +39,11 @@ int main()
 static void test_task()
 {
   static uint32_t m_lastExecution = 0;
-  if((systick_getCounter1ms() - m_lastExecution) > 99)
+  if((systick_getCounter1ms() - m_lastExecution) > 999)
   {
     m_lastExecution = systick_getCounter1ms();
 
-    // ...
+    gpio_toggle(GPIOB, GPIO3);
   }
 }
 
@@ -65,10 +56,11 @@ static void hardware_init()
 
   // ...
   usb_init();
-  ice40prog_init();
+  xdev_out(usb_sendChar);
 
   // ...
-  xdev_out(usb_sendChar);
+  spiFlash_init();
+  ice40prog_init();
 
   // Initialize onboard LED
   rcc_periph_clock_enable(RCC_GPIOB);

@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include "ice40prog.h"
 #include "systick_delay.h"
+#include "spiFlash.h"
+#include "bytesutil.h"
+#include "xprintf.h"
 
 // ----------------------------------------------------------------------------
 #include <libopencm3/stm32/rcc.h>
@@ -16,12 +19,12 @@ static void ice40prog_setCSHigh(uint8_t isHigh)
 {
   if(isHigh)
   {
-    gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO4);
+    gpio_mode_setup(GPIOF, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO0);
   }
   else
   {
-    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO4);
-    gpio_clear(GPIOA, GPIO4);
+    gpio_mode_setup(GPIOF, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO0);
+    gpio_clear(GPIOF, GPIO0);
   }
 }
 
@@ -30,19 +33,19 @@ static void ice40prog_fpgaResetHigh(uint8_t isHigh)
 {
   if(isHigh)
   {
-    gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO1);
+    gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO0);
   }
   else
   {
-    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO1);
-    gpio_clear(GPIOA, GPIO1);
+    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO0);
+    gpio_clear(GPIOA, GPIO0);
   }
 }
 
 // ----------------------------------------------------------------------------
 static uint8_t ice40prog_cdoneCheck()
 {
-  return gpio_get(GPIOA, GPIO0);
+  return gpio_get(GPIOA, GPIO1);
 }
 
 // ----------------------------------------------------------------------------
@@ -62,8 +65,11 @@ static void ice40prog_spiInit()
 {
   // Configure SPI peripheral in master mode
   rcc_periph_clock_enable(RCC_SPI1);
+  rcc_periph_clock_enable(RCC_GPIOA);
+  rcc_periph_clock_enable(RCC_GPIOF);
 
   // ...
+  gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO1);
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO5 | GPIO6 | GPIO7);
   gpio_set_af(GPIOA, GPIO_AF0, GPIO5 | GPIO6 | GPIO7);
 
@@ -95,25 +101,15 @@ static void ice40prog_spiRelease()
 void ice40prog_init()
 {
   // ...
-  ice40prog_gpioInit();
-  ice40prog_spiRelease();
+  ice40prog_spiInit();
 
-  // Toggle FPGA reset signal
-  ice40prog_setCSHigh(true);
-  ice40prog_fpgaResetHigh(false);
-  _delay_ms(5);
-  ice40prog_fpgaResetHigh(true);
-
-  // Wait for FPGA to finish configuration
-  while(ice40prog_cdoneCheck() == 0);
+  // ...
+  ice40prog_loadFromSpiFlash(0x1000);
 }
 
 // ----------------------------------------------------------------------------
 void ice40prog_start()
 {
-  // ...
-  ice40prog_spiInit();
-
   // ...
   ice40prog_setCSHigh(false);
   ice40prog_fpgaResetHigh(false);
@@ -123,16 +119,31 @@ void ice40prog_start()
 
 // ----------------------------------------------------------------------------
 void ice40prog_finish()
-{
+{  
   // ...
-  while(ice40prog_cdoneCheck() == 0)
+  int32_t timeout = 100;
+  while((ice40prog_cdoneCheck() == 0) && (timeout > 0))
+  {
+    timeout -= 1;
+    ice40prog_spiSend(0x00);
+  }
+
+  // ...
+  if(timeout == 0)
+  {
+    ice40prog_setCSHigh(true);
+    ice40prog_spiRelease();
+    return;
+  }
+
+  // Send at least 49 clocks more
+  for(uint8_t i;i<7;i++)
   {
     ice40prog_spiSend(0x00);
   }
 
   // ...
   ice40prog_setCSHigh(true);
-  ice40prog_spiRelease();
 }
 
 // ----------------------------------------------------------------------------
@@ -142,4 +153,49 @@ void ice40prog_txData(uint8_t* buf, int32_t buflen)
   {
     ice40prog_spiSend(*buf++);
   }
+}
+
+// ----------------------------------------------------------------------------
+void ice40prog_loadFromSpiFlash(uint32_t baseAddress)
+{
+  uint32_t length;
+  uint32_t checksum;
+  uint8_t m_buf[256];
+  uint8_t m_initialPage = true;
+  uint32_t baseOffset = baseAddress;
+
+  ice40prog_start();
+
+  while(true)
+  {
+    spiFlash_read_data(baseAddress, 256, m_buf);
+    baseAddress += 256;
+
+    if(m_initialPage)
+    {
+      m_initialPage = false;
+
+      // TOOD: Check bitstream checksum with the SPI flash content ...
+      checksum = make32b(m_buf, 0);
+
+      // TODO: Check bitstream length is in valid range ...
+      length = make32b(m_buf, 4) + 8;
+
+      ice40prog_txData((uint8_t*)(m_buf + 8), 248);
+    }
+    else
+    {
+      ice40prog_txData(m_buf, 256);
+    } 
+
+    if((length - (baseAddress - baseOffset)) < 256)
+    {
+      uint32_t remainder = (length - (baseAddress - baseOffset));
+      spiFlash_read_data(baseAddress, remainder, m_buf);
+      ice40prog_txData(m_buf, remainder);
+      break;
+    }
+  }
+
+  ice40prog_finish();
 }

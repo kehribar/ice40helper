@@ -15,3 +15,6 @@ void ice40prog_finish();
 
 // ----------------------------------------------------------------------------
 void ice40prog_txData(uint8_t* buf, int32_t buflen);
+
+// ----------------------------------------------------------------------------
+void ice40prog_loadFromSpiFlash(uint32_t baseAddress);

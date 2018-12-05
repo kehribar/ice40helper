@@ -10,7 +10,8 @@ SHARED_DIR =
 
 # ...
 CFILES  = main.c usb.c systick_delay.c xprintf.c
-CFILES += ice40prog.c comHandler.c
+CFILES += ice40prog.c comHandler.c spiFlash.c
+CFILES += bytesutil.c
 
 # ...
 CFLAGS += -Wno-unused-parameter -Wno-strict-prototypes
