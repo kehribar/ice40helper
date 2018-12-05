@@ -84,6 +84,9 @@ void spiFlash_init()
   rcc_periph_clock_enable(RCC_GPIOA);
   rcc_periph_clock_enable(RCC_GPIOF);
 
+  // TODO: SPI is bitbanged. Change to synchronised UART mode for higher speed
+  // transfer.
+
   // ...
   gpio_mode_setup(GPIOF, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO1);
   gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO2);

@@ -92,7 +92,7 @@ void comHandler_analyse(uint8_t* buf, int32_t len)
       break;
     }
     // ------------------------------------------------------------------------
-    // SPI Flash write initialise
+    // SPI Flash write stream data push
     case 6:
     {
       uint8_t* data = (uint8_t*)(buf + 1);
