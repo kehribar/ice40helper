@@ -1,3 +1,3 @@
 # ice40helper
 
-![](../doc/proto_v0.jpg)
+![](./doc/proto_v0.jpg)
