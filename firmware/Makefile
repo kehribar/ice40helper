@@ -33,7 +33,8 @@ include ./rules.mk
 include $(OPENCM3_DIR)/mk/genlink-rules.mk
 
 prog:
-	st-flash --reset write ./obj/main.bin 0x8000000
+	# st-flash --reset write ./obj/main.bin 0x8000000
+	sudo dfu-util --reset --device 0483:DF11 -D ./obj/main.bin -s 0x08000000:32768 -a 0
 
 iterate:
 	make all -j32 && rm *.ld
