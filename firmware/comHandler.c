@@ -29,9 +29,10 @@ void comHandler_task()
     int32_t datalen = usb_rxDataAmount();
     if(datalen == 128)
     {
-      gpio_toggle(GPIOB, GPIO3);
+      gpio_set(GPIOF, GPIO0);
       usb_rxData(m_buff, datalen);
       comHandler_analyse(m_buff, datalen);
+      gpio_clear(GPIOF, GPIO0);
     }
   }
 }
