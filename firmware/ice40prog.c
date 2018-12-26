@@ -19,12 +19,13 @@ static void ice40prog_setCSHigh(uint8_t isHigh)
 {
   if(isHigh)
   {
-    gpio_mode_setup(GPIOF, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO0);
+    gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO1);
+    gpio_set(GPIOB, GPIO1);
   }
   else
   {
-    gpio_mode_setup(GPIOF, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO0);
-    gpio_clear(GPIOF, GPIO0);
+    gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO1);
+    gpio_clear(GPIOB, GPIO1);
   }
 }
 
@@ -45,7 +46,7 @@ static void ice40prog_fpgaResetHigh(uint8_t isHigh)
 // ----------------------------------------------------------------------------
 static uint8_t ice40prog_cdoneCheck()
 {
-  return gpio_get(GPIOA, GPIO1);
+  return gpio_get(GPIOF, GPIO1);
 }
 
 // ----------------------------------------------------------------------------
@@ -58,6 +59,7 @@ static void ice40prog_spiSend(uint8_t ch)
 static void ice40prog_gpioInit()
 {
   rcc_periph_clock_enable(RCC_GPIOA);
+  rcc_periph_clock_enable(RCC_GPIOF);
 }
 
 // ----------------------------------------------------------------------------
@@ -69,7 +71,6 @@ static void ice40prog_spiInit()
   rcc_periph_clock_enable(RCC_GPIOF);
 
   // ...
-  gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO1);
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO5 | GPIO6 | GPIO7);
   gpio_set_af(GPIOA, GPIO_AF0, GPIO5 | GPIO6 | GPIO7);
 
@@ -115,13 +116,14 @@ void ice40prog_start()
   ice40prog_fpgaResetHigh(false);
   _delay_ms(5);
   ice40prog_fpgaResetHigh(true);
+  _delay_ms(5);
 }
 
 // ----------------------------------------------------------------------------
 void ice40prog_finish()
 {  
   // ...
-  int32_t timeout = 100;
+  int32_t timeout = 250;
   while((ice40prog_cdoneCheck() == 0) && (timeout > 0))
   {
     timeout -= 1;
