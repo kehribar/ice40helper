@@ -7,74 +7,38 @@
 #include <string.h>
 #include "systick_delay.h"
 #include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/gpio.h>
 
 // ----------------------------------------------------------------------------
-#define spiFlash_cs_high() gpio_set(GPIOF, GPIO1)
-#define spiFlash_cs_low() gpio_clear(GPIOF, GPIO1)
+#define spiFlash_cs_high() gpio_set(GPIOA, GPIO1)
+#define spiFlash_cs_low() gpio_clear(GPIOA, GPIO1)
+#define spiFlash_send_spi(tx) spi_exchange(tx)
 
 // ----------------------------------------------------------------------------
 static uint8_t spi_exchange(uint8_t tx)
 {
-  uint8_t i;
-  uint8_t rx = 0;
-
-  for(i=0;i<8;i++)
-  {
-    rx = rx << 1;
-
-    if(tx & 0x80)
-    {
-      gpio_set(GPIOA, GPIO2);     
-    }
-    else
-    {
-      gpio_clear(GPIOA, GPIO2);     
-    }
-
-    gpio_clear(GPIOA, GPIO4); 
-    gpio_set(GPIOA, GPIO4);   
-
-    if(gpio_get(GPIOA, GPIO3))
-    {
-      rx |= 0x01;
-    }
-
-    tx = tx << 1;
-  }
-
-  return rx;
+  // ...
+  while((USART2_ISR & USART_ISR_TXE) == 0);
+  USART2_TDR = tx;
+  
+  // ...
+  while((USART2_ISR & USART_ISR_RXNE) == 0);
+  return USART2_RDR;
 }
 
 // ----------------------------------------------------------------------------
 static void spiFlash_txOnly_spi(uint8_t tx)
 {
-  uint8_t i;
+  volatile uint8_t devNull;
+  
+  // ...
+  while((USART2_ISR & USART_ISR_TXE) == 0);
+  USART2_TDR = tx;
 
-  for(i=0;i<8;i++)
-  {
-    if((tx & 0x80) != 0)
-    {
-      gpio_set(GPIOA, GPIO2);     
-    }
-    else
-    {
-      gpio_clear(GPIOA, GPIO2);     
-    }
-
-    gpio_clear(GPIOA, GPIO4);   
-    gpio_set(GPIOA, GPIO4);   
-
-    tx = tx << 1;
-  }
-}
-
-// ----------------------------------------------------------------------------
-static uint8_t spiFlash_send_spi(uint8_t tx)
-{
-  uint8_t rx = 0;
-  rx = spi_exchange(tx);
-  return rx;
+  // ...
+  while((USART2_ISR & USART_ISR_RXNE) == 0);
+  devNull = USART2_RDR;
 }
 
 // ----------------------------------------------------------------------------
@@ -82,16 +46,25 @@ void spiFlash_init()
 {
   // ...
   rcc_periph_clock_enable(RCC_GPIOA);
-  rcc_periph_clock_enable(RCC_GPIOF);
-
-  // TODO: SPI is bitbanged. Change to synchronised UART mode for higher speed
-  // transfer.
+  rcc_periph_clock_enable(RCC_USART2);
 
   // ...
-  gpio_mode_setup(GPIOF, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO1);
-  gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO2);
-  gpio_mode_setup(GPIOA, GPIO_MODE_INPUT,  GPIO_PUPD_PULLUP, GPIO3);
-  gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO4);
+  gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO1);
+  gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO2 | GPIO3 | GPIO4);
+  gpio_set_af(GPIOA, GPIO_AF1, GPIO2 | GPIO3 | GPIO4);
+
+  // ...
+  USART2_CR1 = USART_CR1_RE | USART_CR1_OVER8;
+  USART2_CR2 = USART_CR2_SWAP | USART_CR2_CLKEN | USART_CR2_MSBFIRST | USART_CR2_LBCL;
+
+  // 6MBps with 48MHz CPU clock
+  USART2_BRR = 0x10;
+
+  // ...
+  USART2_CR1 |= USART_CR1_UE;
+
+  // ...
+  USART2_CR1 |= USART_CR1_TE;
 
   // ...
   spiFlash_cs_high();
@@ -118,8 +91,13 @@ uint8_t spiFlash_check_ID()
 
   spiFlash_cs_high();
 
-  // SPI Flash: AT25SF321
-  if(((manufacturer == 0x1F) && (device_type == 0x87)) && (capacity == 0x01))
+  // xprintf("\r\n");
+  // xprintf("manufacturer: %2X\r\n", manufacturer);
+  // xprintf("device_type:  %2X\r\n", device_type);
+  // xprintf("capacity:     %2X\r\n", capacity);
+
+  // SPI Flash: AT25SF041
+  if(((manufacturer == 0x1F) && (device_type == 0x84)) && (capacity == 0x01))
   {
     return 1;
   }
@@ -137,19 +115,19 @@ void spiFlash_read_data(uint32_t address, uint32_t length, uint8_t* data)
   spiFlash_cs_low();
 
   // Normal speed 'Read Data' command
-  spiFlash_txOnly_spi(0x03);
+  spiFlash_send_spi(0x03);
 
   // A23-A16
   tmp = ((address >> 16) & 0xFF);
-  spiFlash_txOnly_spi(tmp);
+  spiFlash_send_spi(tmp);
 
   // A15-A8
   tmp = ((address >> 8) & 0xFF);
-  spiFlash_txOnly_spi(tmp);
+  spiFlash_send_spi(tmp);
 
   // A7-A0
   tmp = ((address >> 0) & 0xFF);
-  spiFlash_txOnly_spi(tmp);
+  spiFlash_send_spi(tmp);
 
   // Dummy byte ...
   // spiFlash_txOnly_spi(0x00);
