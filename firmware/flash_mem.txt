@@ -1,0 +1,15 @@
+
+Memory Layout
+-------------
+[0x00000 - 0x01000]: User setting space (4kB)
+[0x01000 - 0x29000]: FPGA bitstream 0 (160kB)
+[0x29000 - 0x51000]: FPGA bitstream 1 (160kB)
+[0x51000 -  ..... ]: Unused space
+
+FPGA Bitstream Layout (*)
+-------------------------
+[0x00000 - 0x00004]: Length
+[0x00004 - 0x00008]: Checksum
+[0x00008 -  ..... ]: Data
+
+(*) Memory space is referenced to the actual bitstream base address.
