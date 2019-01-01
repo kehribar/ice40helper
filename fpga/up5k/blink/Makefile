@@ -6,6 +6,7 @@ PROJ     = top
 SOURCES  = 
 PIN_DEF  = pinmap.pcf
 DEVICE   = up5k
+PORT     = /dev/ttyACM0
 
 #------------------------------------------------------------------------------
 # Don't change anything below
@@ -15,24 +16,24 @@ MAKEFLAGS += --no-print-directory
 
 all: $(PROJ).bin
 
-%.blif: %.v
+%.json: %.v
 	@echo ""
 	@echo "-------------------------------------------------------------------"
 	@echo "-- Running yosys ..."
 	@echo "-------------------------------------------------------------------"
 	@rm -rf $(OBJDIR)/yosys_log.txt
-	yosys -p 'synth_ice40 -top top -blif $(OBJDIR)/$@' $< $(SOURCES) \
+	yosys -p 'synth_ice40 -json $(OBJDIR)/$@ -top top' $< $(SOURCES) \
 	>> $(OBJDIR)/yosys_log.txt 2>&1 || cat $(OBJDIR)/yosys_log.txt
 
-%.asc: %.blif
+%.asc: %.json
 	@echo ""
 	@echo "-------------------------------------------------------------------"
-	@echo "-- Running arachne-pnr ..."
+	@echo "-- Running nextpnr ..."
 	@echo "-------------------------------------------------------------------"
 	@rm -rf $(OBJDIR)/arachne-pnr_log.txt
-	arachne-pnr -d $(subst up,,$(subst hx,,$(subst lp,,$(DEVICE)))) -o $(OBJDIR)/$@ \
-	-p $(PIN_DEF) $(OBJDIR)/$^ >> \
-	$(OBJDIR)/arachne-pnr_log.txt 2>&1 || cat $(OBJDIR)/arachne-pnr_log.txt
+	nextpnr-ice40 --$(DEVICE) --asc $(OBJDIR)/$@ --pcf $(PIN_DEF) \
+	--json $(OBJDIR)/$^ >> $(OBJDIR)/nextpnr-pnr_log.txt 2>&1 || \
+	cat $(OBJDIR)/nextpnr_log.txt
 
 %.bin: %.asc
 	@echo ""
@@ -45,9 +46,17 @@ all: $(PROJ).bin
 prog:
 	@echo ""
 	@echo "-------------------------------------------------------------------"
-	@echo "-- Running iceprog ..."
+	@echo "-- Programming (SRAM) ..."
 	@echo "-------------------------------------------------------------------"
-	iceprog -S $(OBJDIR)/$(PROJ).bin
+	ice40prog $(PORT) ./obj/top.bin
+	@echo ""
+
+prog_flash:
+	@echo ""
+	@echo "-------------------------------------------------------------------"
+	@echo "-- Programming (Flash) ..."
+	@echo "-------------------------------------------------------------------"
+	ice40prog_flash $(PORT) ./obj/top.bin
 	@echo ""
 
 clean:
@@ -67,15 +76,14 @@ timing:
 iterate:
 	@echo ""
 	@echo "-------------------------------------------------------------------"
+	@echo "--"
+	@echo "-------------------------------------------------------------------"
 	make clean && make all -j32 && make prog
 
 iterate_w_timing:
 	@echo ""
 	@echo "-------------------------------------------------------------------"
 	make clean && make all -j32 && make timing && make prog
-
-terminal:
-	sudo python -m serial.tools.miniterm /dev/ttyUSB1 1000000
 
 # .SECONDARY:
 # .PHONY: all prog clean

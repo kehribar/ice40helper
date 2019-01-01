@@ -11,13 +11,13 @@ module top
 
 // ...
 wire clk;
-SB_HFOSC inthosc(
+SB_HFOSC osc(
   .CLKHFPU(1'b1),
   .CLKHFEN(1'b1),
   .CLKHF(clk)
 );
 
-// ..
+// ...
 reg [25:0] led_counter;
 
 // ...
