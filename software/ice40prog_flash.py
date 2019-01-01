@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -----------------------------------------------------------------------------
 # 
 # 
@@ -53,6 +54,7 @@ if __name__ == '__main__':
 
   # Start the process
   x = 0
+  print("")
   print("Flash erase ...")
   while True:
     if((x * 4096) < len(binbuff)):
@@ -125,6 +127,7 @@ if __name__ == '__main__':
   speed /= 1024
 
   # ...
+  print("")
   print("Transfer finished!")
   print("File size:", len(binbuff), "bytes")
   print("Tranfer speed:", int(speed), "kB/sec")

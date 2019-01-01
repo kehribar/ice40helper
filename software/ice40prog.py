@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -----------------------------------------------------------------------------
 # 
 # 
@@ -13,7 +14,7 @@ from datetime import datetime
 if __name__ == '__main__':
 
   # ...
-  sp = serial.Serial(port = sys.argv[1], baudrate = 999999999, timeout = 0.1)
+  sp = serial.Serial(port = sys.argv[1], baudrate = 999999999, timeout = 0.0001)
   if(sp.isOpen() == True):
     sp.close()
   sp.open()
@@ -80,6 +81,7 @@ if __name__ == '__main__':
   speed /= 1024
 
   # ...
+  print("")
   print("Transfer finished!")
   print("  File size:     ", len(binbuff), "bytes")
   print("  Tranfer speed: ", int(speed), "kB/sec")
