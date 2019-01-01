@@ -11,7 +11,7 @@ SHARED_DIR =
 # ...
 CFILES  = main.c usb.c systick_delay.c xprintf.c
 CFILES += ice40prog.c comHandler.c spiFlash.c
-CFILES += bytesutil.c
+CFILES += bytesutil.c ice40data.c
 
 # ...
 CFLAGS += -Wno-unused-parameter -Wno-strict-prototypes
@@ -42,3 +42,7 @@ iterate:
 	mv $(PROJECT).elf ./obj
 	arm-none-eabi-size ./obj/$(PROJECT).elf
 	make prog
+
+monitor:
+	screen /dev/ttyACM0 
+	

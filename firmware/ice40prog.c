@@ -19,12 +19,10 @@ static void ice40prog_setCSHigh(uint8_t isHigh)
 {
   if(isHigh)
   {
-    gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO1);
     gpio_set(GPIOB, GPIO1);
   }
   else
   {
-    gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO1);
     gpio_clear(GPIOB, GPIO1);
   }
 }
@@ -34,11 +32,10 @@ static void ice40prog_fpgaResetHigh(uint8_t isHigh)
 {
   if(isHigh)
   {
-    gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO0);
+    gpio_set(GPIOA, GPIO0);
   }
   else
   {
-    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO0);
     gpio_clear(GPIOA, GPIO0);
   }
 }
@@ -56,30 +53,32 @@ static void ice40prog_spiSend(uint8_t ch)
 }
 
 // ----------------------------------------------------------------------------
-static void ice40prog_gpioInit()
-{
-  rcc_periph_clock_enable(RCC_GPIOA);
-  rcc_periph_clock_enable(RCC_GPIOF);
-}
-
-// ----------------------------------------------------------------------------
 static void ice40prog_spiInit()
 {
   // Configure SPI peripheral in master mode
   rcc_periph_clock_enable(RCC_SPI1);
   rcc_periph_clock_enable(RCC_GPIOA);
+  rcc_periph_clock_enable(RCC_GPIOB);
   rcc_periph_clock_enable(RCC_GPIOF);
 
   // ...
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO5 | GPIO6 | GPIO7);
   gpio_set_af(GPIOA, GPIO_AF0, GPIO5 | GPIO6 | GPIO7);
 
+  // 
+  gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0);
+  gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO1);
+
+  // ...
+  ice40prog_setCSHigh(false);
+  ice40prog_fpgaResetHigh(false);
+
   // ...
   spi_reset(SPI1);
 
   // ...
   spi_set_master_mode(SPI1);
-  spi_set_baudrate_prescaler(SPI1, SPI_CR1_BR_FPCLK_DIV_2);
+  spi_set_baudrate_prescaler(SPI1, SPI_CR1_BR_FPCLK_DIV_8);
   spi_set_clock_polarity_1(SPI1);
   spi_set_clock_phase_0(SPI1);
   spi_set_full_duplex_mode(SPI1);
@@ -90,12 +89,6 @@ static void ice40prog_spiInit()
   spi_fifo_reception_threshold_8bit(SPI1);
   SPI_I2SCFGR(SPI1) &= ~SPI_I2SCFGR_I2SMOD;
   spi_enable(SPI1); 
-}
-
-// ----------------------------------------------------------------------------
-static void ice40prog_spiRelease()
-{
-  gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO5 | GPIO6 | GPIO7);
 }
 
 // ----------------------------------------------------------------------------
@@ -133,19 +126,23 @@ void ice40prog_finish()
   // ...
   if(timeout == 0)
   {
-    ice40prog_setCSHigh(true);
-    ice40prog_spiRelease();
     return;
   }
 
   // Send at least 49 clocks more
-  for(uint8_t i;i<7;i++)
+  for(uint8_t i = 0;i<7;i++)
   {
     ice40prog_spiSend(0x00);
   }
 
   // ...
   ice40prog_setCSHigh(true);
+
+  // Drain the SPI receive buffer ...
+  while(SPI_SR(SPI1) & SPI_SR_RXNE)
+  {
+    spi_read8(SPI1);
+  }
 }
 
 // ----------------------------------------------------------------------------

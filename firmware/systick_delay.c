@@ -34,6 +34,17 @@ uint32_t systick_getCounter1ms()
 }
 
 // ----------------------------------------------------------------------------
+void _delay_nop(const uint32_t nopAmout)
+{
+  uint32_t i = nopAmout;
+
+  while(i--)
+  {
+    __asm("nop");
+  }
+}
+
+// ----------------------------------------------------------------------------
 void sys_tick_handler(void)
 {
   if(m_tickVal)

@@ -11,6 +11,7 @@
 #include "usb.h"
 #include "spiFlash.h"
 #include "comHandler.h"
+#include "ice40data.h"
 
 // ----------------------------------------------------------------------------
 #include <libopencm3/stm32/rcc.h>
@@ -40,7 +41,7 @@ int main()
 static void test_task()
 {
   static uint32_t m_lastExecution = 0;
-  if((systick_getCounter1ms() - m_lastExecution) > 999)
+  if((systick_getCounter1ms() - m_lastExecution) > 99)
   {
     m_lastExecution = systick_getCounter1ms();
 

@@ -5,13 +5,7 @@
 #include <stdint.h>
 
 // ----------------------------------------------------------------------------
-void systick_delay_init();
+uint32_t ice40data_readRegister32b(uint8_t address);
 
 // ----------------------------------------------------------------------------
-uint32_t systick_getCounter1ms();
-
-// ----------------------------------------------------------------------------
-void _delay_ms(uint32_t arg);
-
-// ----------------------------------------------------------------------------
-void _delay_nop(const uint32_t nopAmout);
+void ice40data_writeRegister32b(uint8_t address, uint32_t data);

@@ -1,11 +1,12 @@
 // ----------------------------------------------------------------------------
-// 
-// 
+//
+//
 // ----------------------------------------------------------------------------
 #include <stdlib.h>
 #include "usb_descriptions.h"
 #include "usb.h"
 #include "ringBuffer.h"
+#include "systick_delay.h"
 
 // ----------------------------------------------------------------------------
 #include <libopencm3/stm32/rcc.h>
@@ -24,16 +25,16 @@ static uint8_t m_usbIsConnected = false;
 
 // ---------------------------------------------------------------------------
 static enum usbd_request_return_codes cdcacm_control_request(
-  usbd_device *usbd_dev, 
-  struct usb_setup_data *req, uint8_t **buf, uint16_t *len, 
+  usbd_device *usbd_dev,
+  struct usb_setup_data *req, uint8_t **buf, uint16_t *len,
   void (**complete)(usbd_device *usbd_dev, struct usb_setup_data *req)
 )
 {
   // --------------------------------------------------------------------------
-  switch(req->bRequest) 
+  switch(req->bRequest)
   {
     // ------------------------------------------------------------------------
-    case USB_CDC_REQ_SET_CONTROL_LINE_STATE: 
+    case USB_CDC_REQ_SET_CONTROL_LINE_STATE:
     {
       // DTR is bit 0, RTS is bit 1
       uint16_t rtsdtr = req->wValue;
@@ -42,10 +43,10 @@ static enum usbd_request_return_codes cdcacm_control_request(
     }
     // ------------------------------------------------------------------------
     case USB_CDC_REQ_SET_LINE_CODING:
-    {      
+    {
       if((*len) < sizeof(struct usb_cdc_line_coding))
       {
-        return USBD_REQ_NOTSUPP;    
+        return USBD_REQ_NOTSUPP;
       }
       return USBD_REQ_HANDLED;
     }
@@ -90,7 +91,7 @@ static void usb_txData_actual()
 
       buflen += 1;
       buf[i] = RingBuffer_Remove(&usb_txBuf_rb);
-    } 
+    }
   }
 
   // ...
@@ -103,7 +104,15 @@ static void usb_txData_actual()
 // ---------------------------------------------------------------------------
 static void cdcacm_data_tx_cb(usbd_device *usbd_dev, uint8_t ep)
 {
-  usb_txData_actual();
+  if(RingBuffer_IsEmpty(&usb_txBuf_rb))
+  {
+    uint8_t buf;
+    usbd_ep_write_packet(usb_dev, 0x82, &buf, 0);
+  }
+  else
+  {
+    usb_txData_actual();    
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +189,7 @@ void usb_rxData(uint8_t* buf, int32_t buflen)
       if(RingBuffer_IsEmpty(&usb_rxBuf_rb))
       {
         // ...
-      } 
+      }
       else
       {
         buf[i] = RingBuffer_Remove(&usb_rxBuf_rb);
@@ -227,6 +236,6 @@ void usb_sendChar(uint8_t ch)
 {
   if(usb_isConnected())
   {
-    usb_txData(&ch, 1);    
+    usb_txData(&ch, 1);
   }
 }

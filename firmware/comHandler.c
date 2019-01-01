@@ -8,6 +8,7 @@
 #include "ice40prog.h"
 #include "bytesutil.h"
 #include "usb.h"
+#include "ice40data.h"
 
 // ----------------------------------------------------------------------------
 #include <libopencm3/stm32/gpio.h>
@@ -24,32 +25,39 @@ void comHandler_init()
 // ----------------------------------------------------------------------------
 void comHandler_task()
 {
-  if(usb_isConnected())
+  int32_t datalen = usb_rxDataAmount();
+  if(datalen == 128)
   {
-    int32_t datalen = usb_rxDataAmount();
-    if(datalen == 128)
-    {
-      gpio_set(GPIOF, GPIO0);
-      usb_rxData(m_buff, datalen);
-      comHandler_analyse(m_buff, datalen);
-      gpio_clear(GPIOF, GPIO0);
-    }
+    gpio_set(GPIOF, GPIO0);
+    usb_rxData(m_buff, datalen);
+    comHandler_analyse(m_buff, datalen);
+    gpio_clear(GPIOF, GPIO0);
+  }
+  else if(datalen > 128)
+  {
+    usb_rxData(m_buff, datalen);
   }
 }
 
 // ----------------------------------------------------------------------------
 void comHandler_analyse(uint8_t* buf, int32_t len)
 {
+  uint8_t response[64];
   uint8_t standardResponse = true;
 
   // ...
   switch(buf[0])
   {
     // ------------------------------------------------------------------------
-    // Test
+    // Loopback
     case 0:
     {
-      // ...
+      for(int32_t i=0;i<64;i++)
+      {
+        response[i] = buf[i];
+      }
+      usb_txData(response, 64);
+      standardResponse = false;
       break;
     }
     // ------------------------------------------------------------------------
@@ -113,17 +121,37 @@ void comHandler_analyse(uint8_t* buf, int32_t len)
     {
       uint32_t address = make32b(buf,1); 
       ice40prog_loadFromSpiFlash(address);
+      break;
+    }
+    // ------------------------------------------------------------------------
+    // Basic FPGA register write
+    case 9:
+    {
+      uint8_t address = buf[1]; 
+      uint32_t data = make32b(buf,2); 
+      ice40data_writeRegister32b(address, data);
+      break;
+    }
+    // ------------------------------------------------------------------------
+    // Basic FPGA register read
+    case 10:
+    {
+      uint8_t address = buf[1]; 
+      uint32_t data = ice40data_readRegister32b(address); 
+      put32b(response, 0, data);
+      usb_txData(response, 64);
+      standardResponse = false;
+      break;
     }
   }
 
   // ...
   if(standardResponse)
   {
-    uint8_t response[64];
-    response[0] = 0xDE;
-    response[1] = 0xAD;
-    response[2] = 0xC0;
-    response[3] = 0xDE;
+    response[0] = buf[0];
+    response[1] = 0x11;
+    response[2] = 0x22;
+    response[3] = 0x33;
     usb_txData(response, 64);
   }
 }
