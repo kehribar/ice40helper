@@ -28,52 +28,40 @@ module cmdspi(
 );
 
 // ----------------------------------------------------------------------------
-reg we_flag;
-reg CSN_reg;
-reg MOSI_reg;
-reg SCLK_reg;
-reg we_flag_d;
-reg CSN_reg_d;
-reg CSN_reg_dd;
-reg MOSI_reg_d;
-reg SCLK_reg_d;
-reg SCLK_reg_dd;
-reg writeEnable;
-reg [31:0] rxReg;
-reg [31:0] txReg;
-reg [5:0] bitCount;
-reg addressReceived;
-reg txReg_latchFlag;
+reg we_flag = 0;
+reg CSN_reg = 0;
+reg MOSI_reg = 0;
+reg SCLK_reg = 0;
+reg we_flag_d = 0;
+reg CSN_reg_d = 0;
+reg CSN_reg_dd = 0;
+reg MOSI_reg_d = 0;
+reg SCLK_reg_d = 0;
+reg SCLK_reg_dd = 0;
+reg writeEnable = 0;
+reg [31:0] rxReg = 0;
+reg [31:0] txReg = 0;
+reg [5:0] bitCount = 0;
+reg addressReceived = 0;
+reg txReg_latchFlag = 0;
 
 // ----------------------------------------------------------------------------
 //
 // ----------------------------------------------------------------------------
 always @(posedge clk) begin
-  if(rst == 1) begin
-    MOSI_reg <= 0;
-    MOSI_reg_d <= 0;
-    CSN_reg <= 0;
-    CSN_reg_d <= 0;
-    CSN_reg_dd <= 0;
-    SCLK_reg <= 0;
-    SCLK_reg_d <= 0;
-    SCLK_reg_dd <= 0;
-  end else begin
+  // ...
+  CSN_reg <= CSN;
+  CSN_reg_d <= CSN_reg;
+  CSN_reg_dd <= CSN_reg_d;
 
-    // ...
-    CSN_reg <= CSN;
-    CSN_reg_d <= CSN_reg;
-    CSN_reg_dd <= CSN_reg_d;
+  // ...
+  MOSI_reg <= MOSI;
+  MOSI_reg_d <= MOSI_reg;
 
-    // ...
-    MOSI_reg <= MOSI;
-    MOSI_reg_d <= MOSI_reg;
-
-    // ...
-    SCLK_reg <= SCLK;
-    SCLK_reg_d <= SCLK_reg;
-    SCLK_reg_dd <= SCLK_reg_d;
-  end
+  // ...
+  SCLK_reg <= SCLK;
+  SCLK_reg_d <= SCLK_reg;
+  SCLK_reg_dd <= SCLK_reg_d;
 end
 
 // ----------------------------------------------------------------------------
@@ -98,16 +86,8 @@ assign csn_falling = (~CSN_reg_d) & (CSN_reg_dd);
 // ----------------------------------------------------------------------------
 always @(posedge clk) begin
   if(rst == 1) begin
-    addr <= 0;
-    we_flag <= 0;
     bitCount <= 0;
-    wdat <= 32'b0;
-    txReg <= 32'b0;
-    rxReg <= 32'b0;
     we_flag_d <= 0;
-    writeEnable <= 0;
-    addressReceived <= 0;
-    txReg_latchFlag <= 0;
   end else begin
 
     if(we_assert) begin
@@ -125,6 +105,7 @@ always @(posedge clk) begin
     if(csn_falling) begin
       bitCount <= 6'd6;
       rxReg <= {32{1'b0}};
+      writeEnable <= 1'b0;
       addressReceived <= 1'b0;
     end
 
@@ -138,7 +119,7 @@ always @(posedge clk) begin
         if(!addressReceived) begin
           txReg_latchFlag <= 1'b1;
           addressReceived <= 1'b1;
-          writeEnable <= ~rxReg[5];
+          writeEnable <= !rxReg[6];
           addr <= {rxReg[5:0], MOSI_reg_d};
         end
       end else begin

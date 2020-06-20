@@ -36,6 +36,8 @@ initial begin
   SCLK <= 1;
   rdat <= 0;
   #50 rst <= 0;
+
+  // ...
   rdat <= 32'hA5A5A5A5;
   #5 txreg_top <= 40'h0112345678;  
   #5 CSN <= 0;
@@ -45,6 +47,8 @@ initial begin
     txreg_top <= {txreg_top[38:0], 1'b0};
   end
   #5 CSN <= 1;
+
+  // ...
   rdat <= 32'h5A5A5A5A;  
   #5 txreg_top <= 40'h0112345678;  
   #5 CSN <= 0;
@@ -54,6 +58,8 @@ initial begin
     txreg_top <= {txreg_top[38:0], 1'b0};
   end
   #5 CSN <= 1;
+
+  // ...
   rdat <= 32'hA5A5A5A5; 
   #5 txreg_top <= 40'h8212345678;
   #50 CSN <= 0;
@@ -63,6 +69,19 @@ initial begin
     txreg_top <= {txreg_top[38:0], 1'b0};
   end
   #5 CSN <= 1;
+
+  // ...
+  rdat <= 32'h5A5A5A5A;  
+  #5 txreg_top <= 40'h0112345678;  
+  #5 CSN <= 0;
+  for(i=0;i<40;i++) begin
+    #10 SCLK <= 0;
+    #10 SCLK <= 1;
+    txreg_top <= {txreg_top[38:0], 1'b0};
+  end
+  #5 CSN <= 1;
+
+  // ...
   #250 $finish;
 end
 
