@@ -6,7 +6,7 @@ PROJ     = top
 SOURCES  = ./common/cmdspi/cmdspi.v ./common/debounce.v
 DEVICE   = up5k
 PIN_DEF  = pinmap.pcf
-PORT     = /dev/ttyACM0
+PORT     = /dev/ttyACM1
 F_CLOCK  = 32
 
 #------------------------------------------------------------------------------
@@ -23,7 +23,7 @@ all: $(PROJ).bin
 	@echo "-- Running yosys ..."
 	@echo "-------------------------------------------------------------------"
 	@rm -rf $(OBJDIR)/yosys_log.txt
-	yosys -p 'synth_ice40 -relut -json $(OBJDIR)/$@ -top top' $< $(SOURCES) \
+	yosys -p 'synth_ice40 -noflatten -abc2 -json $(OBJDIR)/$@ -top top' $< $(SOURCES) \
 	>> $(OBJDIR)/yosys_log.txt 2>&1 || cat $(OBJDIR)/yosys_log.txt
 
 %.asc: %.json
